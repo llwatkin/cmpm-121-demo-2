@@ -1,7 +1,15 @@
 import "./style.css";
 
-const APP_NAME = "Hello, World!";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
+const APP_NAME = "AquaSketch";
 document.title = APP_NAME;
-app.innerHTML = APP_NAME;
+
+const titleDisplay = document.createElement("h1");
+titleDisplay.innerHTML = APP_NAME;
+app.append(titleDisplay);
+
+const canvas = document.createElement("canvas");
+canvas.width = 256;
+canvas.height = 256;
+app.append(canvas);
