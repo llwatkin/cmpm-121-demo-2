@@ -26,7 +26,7 @@ interface Line {
 }
 const currLine: Line = { points: [] };
 let allLines: Array<Line> = [];
-const redoLines: Array<Line> = [];
+let redoLines: Array<Line> = [];
 
 const drawingChangeEvent = new Event("drawing-changed");
 
@@ -63,7 +63,6 @@ function clearCanvas() {
 }
 
 canvas.addEventListener("drawing-changed", () => {
-  console.log("drawing changed");
   clearCanvas();
   // Draw current line
   drawLine(currLine);
@@ -73,19 +72,21 @@ canvas.addEventListener("drawing-changed", () => {
   }
 });
 
-const clearButton = document.createElement("button");
-clearButton.innerHTML = "Clear";
-app.append(clearButton);
+function createButton(name: string) {
+  const newButton = document.createElement("button");
+  newButton.innerHTML = name;
+  app.append(newButton);
+  return newButton;
+}
 
+const clearButton = createButton("Clear");
 clearButton.addEventListener("click", () => {
   allLines = [];
+  redoLines = [];
   clearCanvas();
 });
 
-const undoButton = document.createElement("button");
-undoButton.innerHTML = "Undo";
-app.append(undoButton);
-
+const undoButton = createButton("Undo");
 undoButton.addEventListener("click", () => {
   const undoLine = allLines.pop();
   if (undoLine) {
@@ -94,10 +95,7 @@ undoButton.addEventListener("click", () => {
   canvas.dispatchEvent(drawingChangeEvent);
 });
 
-const redoButton = document.createElement("button");
-redoButton.innerHTML = "Redo";
-app.append(redoButton);
-
+const redoButton = createButton("Redo");
 redoButton.addEventListener("click", () => {
   const redoLine = redoLines.pop();
   if (redoLine) {
