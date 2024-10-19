@@ -10,6 +10,4 @@ titleDisplay.innerHTML = APP_NAME;
 app.append(titleDisplay);
 
 const canvas = document.createElement("canvas");
-canvas.width = 256;
-canvas.height = 256;
 app.append(canvas);
