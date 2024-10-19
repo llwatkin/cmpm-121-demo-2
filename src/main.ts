@@ -16,16 +16,17 @@ app.append(canvas);
 
 const ctx = canvas.getContext("2d");
 const cursor = { active: false, x: 0, y: 0 };
-let currLine: Array<Point> = [];
-let allLines: Array<Array<Point>> = [];
-const drawingChangeEvent = new Event("drawing-changed");
 
 interface Point {
   x: number;
   y: number;
 }
+let currLine: Array<Point> = [];
+let allLines: Array<Array<Point>> = [];
 
-canvas.addEventListener("mousedown", (e) => {
+const drawingChangeEvent = new Event("drawing-changed");
+
+canvas.addEventListener("mousedown", () => {
   cursor.active = true;
 });
 
@@ -39,38 +40,37 @@ canvas.addEventListener("mousemove", (e) => {
 
 canvas.addEventListener("mouseup", () => {
   cursor.active = false;
-  allLines.push(currLine);
+  allLines.push(currLine); // Push finished line to the lines array
   currLine = [];
 });
+
+function drawLine(line: Array<Point>) {
+  for (let i = 0; i < line.length - 1; i++) {
+    ctx!.beginPath();
+    ctx!.moveTo(line[i].x, line[i].y);
+    ctx!.lineTo(line[i + 1].x, line[i + 1].y);
+    ctx!.stroke();
+  }
+}
+
+function clearCanvas() {
+  ctx!.clearRect(0, 0, canvas.width, canvas.height);
+}
 
 canvas.addEventListener("drawing-changed", () => {
   console.log("drawing changed");
   clearCanvas();
   // Draw current line
-  for (let i = 0; i < currLine.length - 1; i++) {
-    ctx!.beginPath();
-    ctx!.moveTo(currLine[i].x, currLine[i].y);
-    ctx!.lineTo(currLine[i + 1].x, currLine[i + 1].y);
-    ctx!.stroke();
-  }
+  drawLine(currLine);
   // Draw all past lines
   for (let i = 0; i < allLines.length; i++) {
-    for (let j = 0; j < allLines[i].length - 1; j++) {
-      ctx!.beginPath();
-      ctx!.moveTo(allLines[i][j].x, allLines[i][j].y);
-      ctx!.lineTo(allLines[i][j + 1].x, allLines[i][j + 1].y);
-      ctx!.stroke();
-    }
+    drawLine(allLines[i]);
   }
 });
 
 const clearButton = document.createElement("button");
 clearButton.innerHTML = "Clear";
 app.append(clearButton);
-
-function clearCanvas() {
-  ctx!.clearRect(0, 0, canvas.width, canvas.height);
-}
 
 clearButton.addEventListener("click", () => {
   allLines = [];
