@@ -14,8 +14,6 @@
 }
 
 canvas {
-  width: 256;
-  height: 256;
   background-color: #ffffff;
   border: 5px groove #1a1a1a;
   border-radius: 20px;
