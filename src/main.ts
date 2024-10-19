@@ -21,8 +21,12 @@ interface Point {
   x: number;
   y: number;
 }
-let currLine: Array<Point> = [];
-let allLines: Array<Array<Point>> = [];
+interface Line {
+  points: Array<Point>;
+}
+const currLine: Line = { points: [] };
+let allLines: Array<Line> = [];
+const redoLines: Array<Line> = [];
 
 const drawingChangeEvent = new Event("drawing-changed");
 
@@ -33,22 +37,23 @@ canvas.addEventListener("mousedown", () => {
 canvas.addEventListener("mousemove", (e) => {
   if (cursor.active) {
     const newPoint: Point = { x: e.offsetX, y: e.offsetY };
-    currLine.push(newPoint);
+    currLine.points.push(newPoint);
     canvas.dispatchEvent(drawingChangeEvent);
   }
 });
 
 canvas.addEventListener("mouseup", () => {
   cursor.active = false;
-  allLines.push(currLine); // Push finished line to the lines array
-  currLine = [];
+  const finishedLine: Line = { points: currLine.points };
+  allLines.push(finishedLine); // Push finished line to the lines array
+  currLine.points = []; // Clear current points to start a new line
 });
 
-function drawLine(line: Array<Point>) {
-  for (let i = 0; i < line.length - 1; i++) {
+function drawLine(line: Line) {
+  for (let i = 0; i < line.points.length - 1; i++) {
     ctx!.beginPath();
-    ctx!.moveTo(line[i].x, line[i].y);
-    ctx!.lineTo(line[i + 1].x, line[i + 1].y);
+    ctx!.moveTo(line.points[i].x, line.points[i].y);
+    ctx!.lineTo(line.points[i + 1].x, line.points[i + 1].y);
     ctx!.stroke();
   }
 }
@@ -75,4 +80,28 @@ app.append(clearButton);
 clearButton.addEventListener("click", () => {
   allLines = [];
   clearCanvas();
+});
+
+const undoButton = document.createElement("button");
+undoButton.innerHTML = "Undo";
+app.append(undoButton);
+
+undoButton.addEventListener("click", () => {
+  const undoLine = allLines.pop();
+  if (undoLine) {
+    redoLines.push(undoLine);
+  }
+  canvas.dispatchEvent(drawingChangeEvent);
+});
+
+const redoButton = document.createElement("button");
+redoButton.innerHTML = "Redo";
+app.append(redoButton);
+
+redoButton.addEventListener("click", () => {
+  const redoLine = redoLines.pop();
+  if (redoLine) {
+    allLines.push(redoLine);
+  }
+  canvas.dispatchEvent(drawingChangeEvent);
 });
