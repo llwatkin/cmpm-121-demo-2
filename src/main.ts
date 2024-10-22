@@ -61,6 +61,7 @@ canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
   const initPoint: Point = { x: e.offsetX, y: e.offsetY };
   currLine = createLine(initPoint);
+  allLines.push(currLine);
 });
 
 canvas.addEventListener("mousemove", (e) => {
@@ -73,9 +74,7 @@ canvas.addEventListener("mousemove", (e) => {
 
 canvas.addEventListener("mouseup", () => {
   cursor.active = false;
-  allLines.push(currLine); // Push finished line to the total lines array
-  currLine = createLine(); // Reset line to prepare for next stroke
-  redoLines = []; // Clear previous redo lines when a new line is drawn
+  redoLines = []; // Clear previous redo lines whenever a new line is drawn
 });
 
 function clearCanvas() {
@@ -84,30 +83,27 @@ function clearCanvas() {
 
 canvas.addEventListener("drawing-changed", () => {
   clearCanvas();
-  // Draw current line
-  currLine.display(ctx!);
-  // Draw all past lines
   for (let i = 0; i < allLines.length; i++) {
     allLines[i].display(ctx!);
   }
 });
 
-function createButton(name: string) {
+function createButton(name: string, clickFunction: VoidFunction) {
   const newButton = document.createElement("button");
   newButton.innerHTML = name;
   app.append(newButton);
+
+  newButton.addEventListener("click", clickFunction);
   return newButton;
 }
 
-const clearButton = createButton("Clear");
-clearButton.addEventListener("click", () => {
+createButton("Clear", function () {
   allLines = [];
   redoLines = [];
   clearCanvas();
 });
 
-const undoButton = createButton("Undo");
-undoButton.addEventListener("click", () => {
+createButton("Undo", function () {
   const undoLine = allLines.pop();
   if (undoLine) {
     redoLines.push(undoLine);
@@ -115,8 +111,7 @@ undoButton.addEventListener("click", () => {
   canvas.dispatchEvent(drawingChangeEvent);
 });
 
-const redoButton = createButton("Redo");
-redoButton.addEventListener("click", () => {
+createButton("Redo", function () {
   const redoLine = redoLines.pop();
   if (redoLine) {
     allLines.push(redoLine);
