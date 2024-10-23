@@ -26,6 +26,7 @@ app.append(markerTools);
 const ctx = canvas.getContext("2d");
 const cursor = { active: false };
 let toolPreview: ToolPreview | null = null;
+const PREVIEW_RADIUS = 2;
 
 interface Point {
   x: number;
@@ -70,8 +71,9 @@ interface ToolPreview {
 function createToolPreview(location: Point): ToolPreview {
   return {
     display: (ctx: CanvasRenderingContext2D) => {
+      ctx.lineWidth = currLineWidth;
       ctx.beginPath();
-      ctx.arc(location.x, location.y, currLineWidth, 0, 2 * Math.PI, false);
+      ctx.arc(location.x, location.y, PREVIEW_RADIUS, 0, 2 * Math.PI, false);
       ctx.fill();
       ctx.stroke();
     },
@@ -83,45 +85,49 @@ let allLines: Array<Line> = [];
 let redoLines: Array<Line> = [];
 
 const drawingChangeEvent = new Event("drawing-changed");
+const toolMovedEvent = new Event("tool-moved");
 
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
   toolPreview = null;
+  canvas.dispatchEvent(toolMovedEvent);
   const initPoint: Point = { x: e.offsetX, y: e.offsetY };
   currLine = createLine(initPoint, currLineWidth);
   allLines.push(currLine);
 });
 
 canvas.addEventListener("mouseenter", (e) => {
-  const newPoint: Point = { x: e.offsetX, y: e.offsetY };
-  const toolMovedEvent = new CustomEvent("tool-moved", {
-    detail: newPoint,
-  });
+  const point: Point = { x: e.offsetX, y: e.offsetY };
+  toolPreview = createToolPreview(point);
   canvas.dispatchEvent(toolMovedEvent);
 });
 
 canvas.addEventListener("mouseout", () => {
   toolPreview = null;
-  redraw();
+  canvas.dispatchEvent(toolMovedEvent);
 });
 
 canvas.addEventListener("mousemove", (e) => {
-  const newPoint: Point = { x: e.offsetX, y: e.offsetY };
+  const point: Point = { x: e.offsetX, y: e.offsetY };
   if (cursor.active) {
-    currLine.drag(newPoint);
+    currLine.drag(point);
     canvas.dispatchEvent(drawingChangeEvent);
   } else {
-    const toolMovedEvent = new CustomEvent("tool-moved", {
-      detail: newPoint,
-    });
+    toolPreview = createToolPreview(point);
     canvas.dispatchEvent(toolMovedEvent);
   }
 });
 
-canvas.addEventListener("mouseup", () => {
+canvas.addEventListener("mouseup", (e) => {
   cursor.active = false;
+  const point: Point = { x: e.offsetX, y: e.offsetY };
+  toolPreview = createToolPreview(point);
+  canvas.dispatchEvent(toolMovedEvent);
   redoLines = []; // Clear previous redo lines whenever a new line is drawn
 });
+
+canvas.addEventListener("drawing-changed", redraw);
+canvas.addEventListener("tool-moved", redraw);
 
 function clearCanvas() {
   ctx!.clearRect(0, 0, canvas.width, canvas.height);
@@ -135,15 +141,6 @@ function redraw() {
     toolPreview.display(ctx!);
   }
 }
-
-canvas.addEventListener("drawing-changed", () => {
-  redraw();
-});
-
-canvas.addEventListener("tool-moved", (e) => {
-  toolPreview = createToolPreview((<CustomEvent>e).detail);
-  redraw();
-});
 
 interface ButtonConfig {
   name: string;
