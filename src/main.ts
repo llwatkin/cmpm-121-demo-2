@@ -10,7 +10,6 @@ titleDisplay.innerHTML = APP_NAME;
 app.append(titleDisplay);
 
 const canvasTools = document.createElement("div");
-canvasTools.id = "canvas-tools";
 app.append(canvasTools);
 
 const canvas = document.createElement("canvas");
@@ -20,8 +19,10 @@ canvas.style.cursor = "none";
 app.append(canvas);
 
 const markerTools = document.createElement("div");
-markerTools.id = "marker-tools";
 app.append(markerTools);
+
+const stickerTools = document.createElement("div");
+app.append(stickerTools);
 
 const ctx = canvas.getContext("2d");
 const cursor = { active: false };
@@ -38,6 +39,7 @@ interface Line {
 
   drag(newPoint: Point): void;
   display(ctx: CanvasRenderingContext2D): void;
+  displayPreview(ctx: CanvasRenderingContext2D, location: Point): void;
 }
 
 const THICK_LINE_WIDTH = 6;
@@ -61,6 +63,41 @@ function createLine(initPoint: Point, lineWidth: number): Line {
         ctx.stroke();
       }
     },
+    displayPreview: (ctx: CanvasRenderingContext2D, location: Point) => {
+      ctx.lineWidth = currLineWidth;
+      ctx.beginPath();
+      ctx.arc(location.x, location.y, PREVIEW_RADIUS, 0, 2 * Math.PI, false);
+      ctx.fill();
+      ctx.stroke();
+    },
+  };
+}
+
+interface Sticker {
+  location: Point;
+  type: string;
+
+  drag(newPoint: Point): void;
+  display(ctx: CanvasRenderingContext2D): void;
+  displayPreview(ctx: CanvasRenderingContext2D, location: Point): void;
+}
+
+let currSticker: string = "";
+
+function createSticker(location: Point, type: string): Sticker {
+  return {
+    location: location,
+    type: type,
+    drag: (newPoint: Point) => {
+      location = newPoint;
+    },
+    display: (ctx: CanvasRenderingContext2D) => {
+      ctx.fillText(type, location.x, location.y);
+    },
+    displayPreview: (ctx: CanvasRenderingContext2D, location: Point) => {
+      ctx.font = "20px serif";
+      ctx.fillText(type, location.x, location.y);
+    },
   };
 }
 
@@ -71,50 +108,54 @@ interface ToolPreview {
 function createToolPreview(location: Point): ToolPreview {
   return {
     display: (ctx: CanvasRenderingContext2D) => {
-      ctx.lineWidth = currLineWidth;
-      ctx.beginPath();
-      ctx.arc(location.x, location.y, PREVIEW_RADIUS, 0, 2 * Math.PI, false);
-      ctx.fill();
-      ctx.stroke();
+      currTool.displayPreview(ctx, location);
     },
   };
 }
 
-let currLine: Line;
-let allLines: Array<Line> = [];
-let redoLines: Array<Line> = [];
+let currTool: Line | Sticker = createLine({ x: 0, y: 0 }, THIN_LINE_WIDTH);
+let drawList: Array<Line | Sticker> = [];
+let redoList: Array<Line | Sticker> = [];
 
-const drawingChangeEvent = new Event("drawing-changed");
-const toolMovedEvent = new Event("tool-moved");
+const drawingChangedEvent = new Event("drawing-changed");
+const toolChangedEvent = new Event("tool-changed");
+
+canvas.addEventListener("drawing-changed", redraw);
+canvas.addEventListener("tool-changed", redraw);
 
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
   toolPreview = null;
-  canvas.dispatchEvent(toolMovedEvent);
-  const initPoint: Point = { x: e.offsetX, y: e.offsetY };
-  currLine = createLine(initPoint, currLineWidth);
-  allLines.push(currLine);
+  canvas.dispatchEvent(toolChangedEvent);
+
+  const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
+  if (currSticker == "") {
+    currTool = createLine(mouseLocation, currLineWidth);
+  } else {
+    currTool = createSticker(mouseLocation, currSticker);
+  }
+  drawList.push(currTool);
 });
 
 canvas.addEventListener("mouseenter", (e) => {
   const point: Point = { x: e.offsetX, y: e.offsetY };
   toolPreview = createToolPreview(point);
-  canvas.dispatchEvent(toolMovedEvent);
+  canvas.dispatchEvent(toolChangedEvent);
 });
 
 canvas.addEventListener("mouseout", () => {
   toolPreview = null;
-  canvas.dispatchEvent(toolMovedEvent);
+  canvas.dispatchEvent(toolChangedEvent);
 });
 
 canvas.addEventListener("mousemove", (e) => {
   const point: Point = { x: e.offsetX, y: e.offsetY };
   if (cursor.active) {
-    currLine.drag(point);
-    canvas.dispatchEvent(drawingChangeEvent);
+    currTool.drag(point);
+    canvas.dispatchEvent(drawingChangedEvent);
   } else {
     toolPreview = createToolPreview(point);
-    canvas.dispatchEvent(toolMovedEvent);
+    canvas.dispatchEvent(toolChangedEvent);
   }
 });
 
@@ -122,12 +163,9 @@ canvas.addEventListener("mouseup", (e) => {
   cursor.active = false;
   const point: Point = { x: e.offsetX, y: e.offsetY };
   toolPreview = createToolPreview(point);
-  canvas.dispatchEvent(toolMovedEvent);
-  redoLines = []; // Clear previous redo lines whenever a new line is drawn
+  canvas.dispatchEvent(toolChangedEvent);
+  redoList = []; // Clear previous redo lines whenever a new line is drawn
 });
-
-canvas.addEventListener("drawing-changed", redraw);
-canvas.addEventListener("tool-moved", redraw);
 
 function clearCanvas() {
   ctx!.clearRect(0, 0, canvas.width, canvas.height);
@@ -136,7 +174,7 @@ function clearCanvas() {
 function redraw() {
   clearCanvas();
 
-  allLines.forEach((line) => line.display(ctx!));
+  drawList.forEach((item) => item.display(ctx!));
   if (toolPreview) {
     toolPreview.display(ctx!);
   }
@@ -145,7 +183,7 @@ function redraw() {
 interface ButtonConfig {
   name: string;
   div: HTMLDivElement;
-  clickFunction: VoidFunction;
+  clickFunction(): void;
 }
 
 function createButton(config: ButtonConfig) {
@@ -161,8 +199,8 @@ createButton({
   name: "Clear",
   div: canvasTools,
   clickFunction: () => {
-    allLines = [];
-    redoLines = [];
+    drawList = [];
+    redoList = [];
     clearCanvas();
   },
 });
@@ -171,11 +209,11 @@ createButton({
   name: "Undo",
   div: canvasTools,
   clickFunction: () => {
-    const undoLine = allLines.pop();
+    const undoLine = drawList.pop();
     if (undoLine) {
-      redoLines.push(undoLine);
+      redoList.push(undoLine);
     }
-    canvas.dispatchEvent(drawingChangeEvent);
+    canvas.dispatchEvent(drawingChangedEvent);
   },
 });
 
@@ -183,11 +221,11 @@ createButton({
   name: "Redo",
   div: canvasTools,
   clickFunction: () => {
-    const redoLine = redoLines.pop();
+    const redoLine = redoList.pop();
     if (redoLine) {
-      allLines.push(redoLine);
+      drawList.push(redoLine);
     }
-    canvas.dispatchEvent(drawingChangeEvent);
+    canvas.dispatchEvent(drawingChangedEvent);
   },
 });
 
@@ -196,6 +234,9 @@ const thinToolButton = createButton({
   div: markerTools,
   clickFunction: () => {
     currLineWidth = THIN_LINE_WIDTH;
+    currSticker = "";
+    currTool = createLine({ x: 0, y: 0 }, currLineWidth);
+
     thinToolButton.classList.add("selectedTool");
     thickToolButton.classList.remove("selectedTool");
   },
@@ -207,7 +248,37 @@ const thickToolButton = createButton({
   div: markerTools,
   clickFunction: () => {
     currLineWidth = THICK_LINE_WIDTH;
+    currSticker = "";
+    currTool = createLine({ x: 0, y: 0 }, currLineWidth);
+
     thickToolButton.classList.add("selectedTool");
     thinToolButton.classList.remove("selectedTool");
+  },
+});
+
+createButton({
+  name: "🐟",
+  div: stickerTools,
+  clickFunction: () => {
+    currSticker = "🐟";
+    currTool = createSticker({ x: 0, y: 0 }, currSticker);
+  },
+});
+
+createButton({
+  name: "🌿",
+  div: stickerTools,
+  clickFunction: () => {
+    currSticker = "🌿";
+    currTool = createSticker({ x: 0, y: 0 }, currSticker);
+  },
+});
+
+createButton({
+  name: "🪨",
+  div: stickerTools,
+  clickFunction: () => {
+    currSticker = "🪨";
+    currTool = createSticker({ x: 0, y: 0 }, currSticker);
   },
 });
