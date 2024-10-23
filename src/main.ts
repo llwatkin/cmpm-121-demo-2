@@ -15,7 +15,6 @@ app.append(canvasTools);
 const canvas = document.createElement("canvas");
 canvas.height = 256;
 canvas.width = 256;
-canvas.style.cursor = "none";
 app.append(canvas);
 
 const markerTools = document.createElement("div");
@@ -27,7 +26,7 @@ app.append(stickerTools);
 const ctx = canvas.getContext("2d");
 const cursor = { active: false };
 let toolPreview: ToolPreview | null = null;
-const PREVIEW_RADIUS = 2;
+const LINE_PREVIEW_RADIUS = 2;
 
 interface Point {
   x: number;
@@ -44,7 +43,7 @@ interface Line {
 
 const THICK_LINE_WIDTH = 6;
 const THIN_LINE_WIDTH = 2;
-let currLineWidth = THIN_LINE_WIDTH;
+let currLineWidth = 0;
 
 function createLine(initPoint: Point, lineWidth: number): Line {
   const points: Array<Point> = [initPoint];
@@ -66,7 +65,14 @@ function createLine(initPoint: Point, lineWidth: number): Line {
     displayPreview: (ctx: CanvasRenderingContext2D, location: Point) => {
       ctx.lineWidth = currLineWidth;
       ctx.beginPath();
-      ctx.arc(location.x, location.y, PREVIEW_RADIUS, 0, 2 * Math.PI, false);
+      ctx.arc(
+        location.x,
+        location.y,
+        LINE_PREVIEW_RADIUS,
+        0,
+        2 * Math.PI,
+        false
+      );
       ctx.fill();
       ctx.stroke();
     },
@@ -106,66 +112,21 @@ interface ToolPreview {
 }
 
 function createToolPreview(location: Point): ToolPreview {
+  // Disable cursor if still enabled
+  if (canvas.style.cursor != "none") {
+    canvas.style.cursor = "none";
+  }
+
   return {
     display: (ctx: CanvasRenderingContext2D) => {
-      currTool.displayPreview(ctx, location);
+      currTool!.displayPreview(ctx, location);
     },
   };
 }
 
-let currTool: Line | Sticker = createLine({ x: 0, y: 0 }, THIN_LINE_WIDTH);
+let currTool: Line | Sticker | null = null;
 let drawList: Array<Line | Sticker> = [];
 let redoList: Array<Line | Sticker> = [];
-
-const drawingChangedEvent = new Event("drawing-changed");
-const toolChangedEvent = new Event("tool-changed");
-
-canvas.addEventListener("drawing-changed", redraw);
-canvas.addEventListener("tool-changed", redraw);
-
-canvas.addEventListener("mousedown", (e) => {
-  cursor.active = true;
-  toolPreview = null;
-  canvas.dispatchEvent(toolChangedEvent);
-
-  const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
-  if (currSticker == "") {
-    currTool = createLine(mouseLocation, currLineWidth);
-  } else {
-    currTool = createSticker(mouseLocation, currSticker);
-  }
-  drawList.push(currTool);
-});
-
-canvas.addEventListener("mouseenter", (e) => {
-  const point: Point = { x: e.offsetX, y: e.offsetY };
-  toolPreview = createToolPreview(point);
-  canvas.dispatchEvent(toolChangedEvent);
-});
-
-canvas.addEventListener("mouseout", () => {
-  toolPreview = null;
-  canvas.dispatchEvent(toolChangedEvent);
-});
-
-canvas.addEventListener("mousemove", (e) => {
-  const point: Point = { x: e.offsetX, y: e.offsetY };
-  if (cursor.active) {
-    currTool.drag(point);
-    canvas.dispatchEvent(drawingChangedEvent);
-  } else {
-    toolPreview = createToolPreview(point);
-    canvas.dispatchEvent(toolChangedEvent);
-  }
-});
-
-canvas.addEventListener("mouseup", (e) => {
-  cursor.active = false;
-  const point: Point = { x: e.offsetX, y: e.offsetY };
-  toolPreview = createToolPreview(point);
-  canvas.dispatchEvent(toolChangedEvent);
-  redoList = []; // Clear previous redo lines whenever a new line is drawn
-});
 
 function clearCanvas() {
   ctx!.clearRect(0, 0, canvas.width, canvas.height);
@@ -180,12 +141,73 @@ function redraw() {
   }
 }
 
+const drawingChangedEvent = new Event("drawing-changed");
+const toolChangedEvent = new Event("tool-changed");
+
+canvas.addEventListener("drawing-changed", redraw);
+canvas.addEventListener("tool-changed", redraw);
+
+canvas.addEventListener("mousedown", (e) => {
+  if (currTool) {
+    cursor.active = true;
+    toolPreview = null;
+    canvas.dispatchEvent(toolChangedEvent);
+
+    const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
+    if (currSticker == "") {
+      currTool = createLine(mouseLocation, currLineWidth);
+    } else {
+      currTool = createSticker(mouseLocation, currSticker);
+    }
+    drawList.push(currTool);
+  }
+});
+
+canvas.addEventListener("mouseenter", (e) => {
+  if (currTool) {
+    const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
+    toolPreview = createToolPreview(mouseLocation);
+    canvas.dispatchEvent(toolChangedEvent);
+  }
+});
+
+canvas.addEventListener("mouseout", () => {
+  if (currTool) {
+    toolPreview = null;
+    canvas.dispatchEvent(toolChangedEvent);
+  }
+});
+
+canvas.addEventListener("mousemove", (e) => {
+  if (currTool) {
+    const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
+    if (cursor.active) {
+      currTool.drag(mouseLocation);
+      canvas.dispatchEvent(drawingChangedEvent);
+    } else {
+      toolPreview = createToolPreview(mouseLocation);
+      canvas.dispatchEvent(toolChangedEvent);
+    }
+  }
+});
+
+canvas.addEventListener("mouseup", (e) => {
+  if (currTool) {
+    cursor.active = false;
+    const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
+    toolPreview = createToolPreview(mouseLocation);
+    canvas.dispatchEvent(toolChangedEvent);
+    redoList = []; // Clear redo list whenever a new thing is drawn
+  }
+});
+
+// Config object for general button creation function
 interface ButtonConfig {
   name: string;
   div: HTMLDivElement;
   clickFunction(): void;
 }
-
+// General function to create a button with a name and click function in a certain div
 function createButton(config: ButtonConfig) {
   const newButton = document.createElement("button");
   newButton.innerHTML = config.name;
@@ -195,6 +217,7 @@ function createButton(config: ButtonConfig) {
   return newButton;
 }
 
+// Create canvas tool buttons
 createButton({
   name: "Clear",
   div: canvasTools,
@@ -204,7 +227,6 @@ createButton({
     clearCanvas();
   },
 });
-
 createButton({
   name: "Undo",
   div: canvasTools,
@@ -216,7 +238,6 @@ createButton({
     canvas.dispatchEvent(drawingChangedEvent);
   },
 });
-
 createButton({
   name: "Redo",
   div: canvasTools,
@@ -229,56 +250,45 @@ createButton({
   },
 });
 
-const thinToolButton = createButton({
-  name: "Thin",
-  div: markerTools,
-  clickFunction: () => {
-    currLineWidth = THIN_LINE_WIDTH;
-    currSticker = "";
-    currTool = createLine({ x: 0, y: 0 }, currLineWidth);
+// Removes selectedTool class from all buttons & adds it to the button passed to the function
+function selectTool(toolButton: HTMLButtonElement) {
+  lineToolButtons.forEach((button) => button.classList.remove("selectedTool"));
+  stickerButtons.forEach((button) => button.classList.remove("selectedTool"));
+  toolButton.classList.add("selectedTool");
+}
 
-    thinToolButton.classList.add("selectedTool");
-    thickToolButton.classList.remove("selectedTool");
-  },
-});
-thinToolButton.classList.add("selectedTool");
-
-const thickToolButton = createButton({
-  name: "Thick",
-  div: markerTools,
-  clickFunction: () => {
-    currLineWidth = THICK_LINE_WIDTH;
-    currSticker = "";
-    currTool = createLine({ x: 0, y: 0 }, currLineWidth);
-
-    thickToolButton.classList.add("selectedTool");
-    thinToolButton.classList.remove("selectedTool");
-  },
-});
-
-createButton({
-  name: "🐟",
-  div: stickerTools,
-  clickFunction: () => {
-    currSticker = "🐟";
-    currTool = createSticker({ x: 0, y: 0 }, currSticker);
-  },
+// Create line tool buttons
+const lineTools = [
+  { name: "Thin", size: THIN_LINE_WIDTH },
+  { name: "Thick", size: THICK_LINE_WIDTH },
+];
+const lineToolButtons: Array<HTMLButtonElement> = [];
+lineTools.forEach((tool) => {
+  const lineToolButton = createButton({
+    name: tool.name,
+    div: markerTools,
+    clickFunction: () => {
+      currLineWidth = tool.size;
+      currSticker = "";
+      currTool = createLine({ x: 0, y: 0 }, currLineWidth);
+      selectTool(lineToolButton);
+    },
+  });
+  lineToolButtons.push(lineToolButton);
 });
 
-createButton({
-  name: "🌿",
-  div: stickerTools,
-  clickFunction: () => {
-    currSticker = "🌿";
-    currTool = createSticker({ x: 0, y: 0 }, currSticker);
-  },
-});
-
-createButton({
-  name: "🪨",
-  div: stickerTools,
-  clickFunction: () => {
-    currSticker = "🪨";
-    currTool = createSticker({ x: 0, y: 0 }, currSticker);
-  },
+// Create sticker buttons
+const stickers: Array<string> = ["🐟", "🌿", "🪨"];
+const stickerButtons: Array<HTMLButtonElement> = [];
+stickers.forEach((sticker) => {
+  const stickerButton = createButton({
+    name: sticker,
+    div: stickerTools,
+    clickFunction: () => {
+      currSticker = sticker;
+      currTool = createSticker({ x: 0, y: 0 }, currSticker);
+      selectTool(stickerButton);
+    },
+  });
+  stickerButtons.push(stickerButton);
 });
