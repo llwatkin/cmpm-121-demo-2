@@ -16,6 +16,7 @@ app.append(canvasTools);
 const canvas = document.createElement("canvas");
 canvas.height = 256;
 canvas.width = 256;
+canvas.style.cursor = "none";
 app.append(canvas);
 
 const markerTools = document.createElement("div");
@@ -23,7 +24,8 @@ markerTools.id = "marker-tools";
 app.append(markerTools);
 
 const ctx = canvas.getContext("2d");
-const cursor = { active: false, x: 0, y: 0 };
+const cursor = { active: false };
+let toolPreview: ToolPreview | null = null;
 
 interface Point {
   x: number;
@@ -52,11 +54,26 @@ function createLine(initPoint: Point, lineWidth: number): Line {
     display: (ctx: CanvasRenderingContext2D) => {
       ctx.lineWidth = lineWidth;
       for (let i = 0; i < points.length - 1; i++) {
-        ctx!.beginPath();
-        ctx!.moveTo(points[i].x, points[i].y);
-        ctx!.lineTo(points[i + 1].x, points[i + 1].y);
-        ctx!.stroke();
+        ctx.beginPath();
+        ctx.moveTo(points[i].x, points[i].y);
+        ctx.lineTo(points[i + 1].x, points[i + 1].y);
+        ctx.stroke();
       }
+    },
+  };
+}
+
+interface ToolPreview {
+  display(ctx: CanvasRenderingContext2D): void;
+}
+
+function createToolPreview(location: Point): ToolPreview {
+  return {
+    display: (ctx: CanvasRenderingContext2D) => {
+      ctx.beginPath();
+      ctx.arc(location.x, location.y, currLineWidth, 0, 2 * Math.PI, false);
+      ctx.fill();
+      ctx.stroke();
     },
   };
 }
@@ -69,16 +86,35 @@ const drawingChangeEvent = new Event("drawing-changed");
 
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
+  toolPreview = null;
   const initPoint: Point = { x: e.offsetX, y: e.offsetY };
   currLine = createLine(initPoint, currLineWidth);
   allLines.push(currLine);
 });
 
+canvas.addEventListener("mouseenter", (e) => {
+  const newPoint: Point = { x: e.offsetX, y: e.offsetY };
+  const toolMovedEvent = new CustomEvent("tool-moved", {
+    detail: newPoint,
+  });
+  canvas.dispatchEvent(toolMovedEvent);
+});
+
+canvas.addEventListener("mouseout", () => {
+  toolPreview = null;
+  redraw();
+});
+
 canvas.addEventListener("mousemove", (e) => {
+  const newPoint: Point = { x: e.offsetX, y: e.offsetY };
   if (cursor.active) {
-    const newPoint: Point = { x: e.offsetX, y: e.offsetY };
     currLine.drag(newPoint);
     canvas.dispatchEvent(drawingChangeEvent);
+  } else {
+    const toolMovedEvent = new CustomEvent("tool-moved", {
+      detail: newPoint,
+    });
+    canvas.dispatchEvent(toolMovedEvent);
   }
 });
 
@@ -91,11 +127,22 @@ function clearCanvas() {
   ctx!.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-canvas.addEventListener("drawing-changed", () => {
+function redraw() {
   clearCanvas();
-  for (let i = 0; i < allLines.length; i++) {
-    allLines[i].display(ctx!);
+
+  allLines.forEach((line) => line.display(ctx!));
+  if (toolPreview) {
+    toolPreview.display(ctx!);
   }
+}
+
+canvas.addEventListener("drawing-changed", () => {
+  redraw();
+});
+
+canvas.addEventListener("tool-moved", (e) => {
+  toolPreview = createToolPreview((<CustomEvent>e).detail);
+  redraw();
 });
 
 interface ButtonConfig {
@@ -156,6 +203,7 @@ const thinToolButton = createButton({
     thickToolButton.classList.remove("selectedTool");
   },
 });
+thinToolButton.classList.add("selectedTool");
 
 const thickToolButton = createButton({
   name: "Thick",
