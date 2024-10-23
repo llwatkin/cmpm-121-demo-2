@@ -1,7 +1,5 @@
 import "./style.css";
-
 const app = document.querySelector<HTMLDivElement>("#app")!;
-
 const APP_NAME = "AquaSketch";
 document.title = APP_NAME;
 
@@ -9,24 +7,35 @@ const titleDisplay = document.createElement("h1");
 titleDisplay.innerHTML = APP_NAME;
 app.append(titleDisplay);
 
-const canvasTools = document.createElement("div");
-app.append(canvasTools);
-
+function createDiv(name: string) {
+  const newDiv = document.createElement("div");
+  newDiv.id = name;
+  app.append(newDiv);
+  return newDiv;
+}
+// Create tool divs and canvas
+const canvasToolsDiv = createDiv("canvas-tools");
 const canvas = document.createElement("canvas");
 canvas.height = 256;
 canvas.width = 256;
 app.append(canvas);
-
-const lineToolsDiv = document.createElement("div");
-app.append(lineToolsDiv);
-
-const stickerToolsDiv = document.createElement("div");
-app.append(stickerToolsDiv);
+const lineToolsDiv = createDiv("line-tools");
+const stickerToolsDiv = createDiv("sticker-tools");
 
 const ctx = canvas.getContext("2d");
 let cursorActive = false;
-let toolPreview: ToolPreview | null = null;
+
 const LINE_PREVIEW_RADIUS = 2;
+const THICK_LINE_WIDTH = 6;
+const THIN_LINE_WIDTH = 2;
+
+let currTool: Line | Sticker | null = null;
+let toolPreview: ToolPreview | null = null;
+let drawList: Array<Line | Sticker> = [];
+let redoList: Array<Line | Sticker> = [];
+
+let currLineWidth = 0;
+let currSticker = "";
 
 interface Point {
   x: number;
@@ -39,11 +48,6 @@ interface Line {
   display(ctx: CanvasRenderingContext2D): void;
   displayPreview(ctx: CanvasRenderingContext2D, location: Point): void;
 }
-
-const THICK_LINE_WIDTH = 6;
-const THIN_LINE_WIDTH = 2;
-let currLineWidth = 0;
-
 function createLine(initPoint: Point, lineWidth: number): Line {
   const points: Array<Point> = [initPoint];
   return {
@@ -84,9 +88,6 @@ interface Sticker {
   display(ctx: CanvasRenderingContext2D): void;
   displayPreview(ctx: CanvasRenderingContext2D, location: Point): void;
 }
-
-let currSticker: string = "";
-
 function createSticker(location: Point, type: string): Sticker {
   return {
     location: location,
@@ -107,7 +108,6 @@ function createSticker(location: Point, type: string): Sticker {
 interface ToolPreview {
   display(ctx: CanvasRenderingContext2D): void;
 }
-
 function createToolPreview(location: Point): ToolPreview {
   // Disable cursor if still enabled
   if (canvas.style.cursor != "none") {
@@ -120,14 +120,9 @@ function createToolPreview(location: Point): ToolPreview {
   };
 }
 
-let currTool: Line | Sticker | null = null;
-let drawList: Array<Line | Sticker> = [];
-let redoList: Array<Line | Sticker> = [];
-
 function clearCanvas() {
   ctx!.clearRect(0, 0, canvas.width, canvas.height);
 }
-
 function redraw() {
   clearCanvas();
   drawList.forEach((item) => item.display(ctx!));
@@ -214,7 +209,7 @@ function createButton(config: ButtonConfig) {
 // Create canvas tool buttons
 createButton({
   name: "🗑️",
-  div: canvasTools,
+  div: canvasToolsDiv,
   clickFunction: () => {
     drawList = [];
     redoList = [];
@@ -223,7 +218,7 @@ createButton({
 });
 createButton({
   name: "↩️",
-  div: canvasTools,
+  div: canvasToolsDiv,
   clickFunction: () => {
     const undoLine = drawList.pop();
     if (undoLine) {
@@ -234,7 +229,7 @@ createButton({
 });
 createButton({
   name: "↪️",
-  div: canvasTools,
+  div: canvasToolsDiv,
   clickFunction: () => {
     const redoLine = redoList.pop();
     if (redoLine) {
@@ -297,6 +292,7 @@ const customStickerButton = createButton({
     const customText = prompt("Enter custom sticker text:", "");
     if (customText) {
       createStickerButton(customText);
+      // Remove and re-add custom sticker button so it always appears at the end
       customStickerButton.remove();
       stickerToolsDiv.append(customStickerButton);
     }
