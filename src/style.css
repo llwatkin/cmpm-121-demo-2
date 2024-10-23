@@ -1,5 +1,5 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: cursive, Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -16,6 +16,7 @@
 canvas {
   background-color: #ffffff;
   border: 5px groove #1a1a1a;
+  margin: 5px;
   border-radius: 20px;
 }
 
@@ -71,8 +72,10 @@ h1 {
 button {
   border-radius: 8px;
   border: 1px solid transparent;
+  min-height: 50px;
+  min-width: 50px;
   padding: 0.6em 1.2em;
-  margin: 0.2em;
+  margin: 0.1em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
