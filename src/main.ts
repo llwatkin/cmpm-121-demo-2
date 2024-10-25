@@ -36,6 +36,7 @@ let redoList: Array<Line | Sticker> = [];
 
 let currLineWidth = 0;
 let currSticker = "";
+let currStickerSize = "30px";
 
 interface Point {
   x: number;
@@ -99,7 +100,7 @@ function createSticker(location: Point, type: string): Sticker {
       ctx.fillText(type, location.x, location.y);
     },
     displayPreview: (ctx: CanvasRenderingContext2D, location: Point) => {
-      ctx.font = "bold 20px cursive";
+      ctx.font = "bold " + currStickerSize + " cursive";
       ctx.fillText(type, location.x, location.y);
     },
   };
@@ -212,8 +213,7 @@ function createButton(config: ButtonConfig) {
 
 // Create canvas tool buttons
 createButton({
-  // Clear
-  name: "🗑️",
+  name: "🗑️", // Clear
   div: canvasToolsDiv,
   clickFunction: () => {
     drawList = [];
@@ -222,8 +222,7 @@ createButton({
   },
 });
 createButton({
-  // Undo
-  name: "↩️",
+  name: "↩️", // Undo
   div: canvasToolsDiv,
   clickFunction: () => {
     const undoLine = drawList.pop();
@@ -234,8 +233,7 @@ createButton({
   },
 });
 createButton({
-  // Redo
-  name: "↪️",
+  name: "↪️", // Redo
   div: canvasToolsDiv,
   clickFunction: () => {
     const redoLine = redoList.pop();
@@ -246,8 +244,7 @@ createButton({
   },
 });
 createButton({
-  // Export
-  name: "💾",
+  name: "💾", // Export
   div: canvasToolsDiv,
   clickFunction: () => {
     const exportCanvas = document.createElement("canvas");
