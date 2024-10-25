@@ -110,9 +110,7 @@ interface ToolPreview {
 }
 function createToolPreview(location: Point): ToolPreview {
   // Disable cursor if still enabled
-  if (canvas.style.cursor != "none") {
-    canvas.style.cursor = "none";
-  }
+  canvas.style.cursor = "none";
   return {
     display: (ctx: CanvasRenderingContext2D) => {
       currTool!.displayPreview(ctx, location);
@@ -120,22 +118,26 @@ function createToolPreview(location: Point): ToolPreview {
   };
 }
 
-function clearCanvas() {
-  ctx!.clearRect(0, 0, canvas.width, canvas.height);
+function clearCanvas(ctx: CanvasRenderingContext2D) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
-function redraw() {
-  clearCanvas();
-  drawList.forEach((item) => item.display(ctx!));
+function redraw(ctx: CanvasRenderingContext2D) {
+  clearCanvas(ctx);
+  drawList.forEach((item) => item.display(ctx));
   if (toolPreview) {
-    toolPreview.display(ctx!);
+    toolPreview.display(ctx);
   }
 }
 
 const drawingChangedEvent = new Event("drawing-changed");
 const toolChangedEvent = new Event("tool-changed");
 
-canvas.addEventListener("drawing-changed", redraw);
-canvas.addEventListener("tool-changed", redraw);
+canvas.addEventListener("drawing-changed", () => {
+  redraw(ctx!);
+});
+canvas.addEventListener("tool-changed", () => {
+  redraw(ctx!);
+});
 
 canvas.addEventListener("mousedown", (e) => {
   if (currTool) {
@@ -162,6 +164,7 @@ canvas.addEventListener("mouseenter", (e) => {
 
 canvas.addEventListener("mouseout", () => {
   if (currTool) {
+    cursorActive = false;
     toolPreview = null;
     canvas.dispatchEvent(toolChangedEvent);
   }
@@ -213,7 +216,7 @@ createButton({
   clickFunction: () => {
     drawList = [];
     redoList = [];
-    clearCanvas();
+    clearCanvas(ctx!);
   },
 });
 createButton({
@@ -236,6 +239,22 @@ createButton({
       drawList.push(redoLine);
     }
     canvas.dispatchEvent(drawingChangedEvent);
+  },
+});
+createButton({
+  name: "💾",
+  div: canvasToolsDiv,
+  clickFunction: () => {
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.height = 1024;
+    exportCanvas.width = 1024;
+    const ectx = exportCanvas.getContext("2d");
+    ectx!.scale(4, 4);
+    redraw(ectx!);
+    const anchor = document.createElement("a");
+    anchor.href = exportCanvas.toDataURL("image/png");
+    anchor.download = "sketchpad.png";
+    anchor.click();
   },
 });
 
