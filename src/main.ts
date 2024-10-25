@@ -139,11 +139,22 @@ canvas.addEventListener("tool-changed", () => {
   redraw(ctx!);
 });
 
+// Sets cursorActive to either true or false and removes the tool preview
+function setCursorActivation(setting: boolean) {
+  cursorActive = setting;
+  toolPreview = null;
+  canvas.dispatchEvent(toolChangedEvent);
+}
+// Creates a tool preview object at the mouse location and fires event
+function showToolPreview(e: MouseEvent) {
+  const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
+  toolPreview = createToolPreview(mouseLocation);
+  canvas.dispatchEvent(toolChangedEvent);
+}
+
 canvas.addEventListener("mousedown", (e) => {
   if (currTool) {
-    cursorActive = true;
-    toolPreview = null;
-    canvas.dispatchEvent(toolChangedEvent);
+    setCursorActivation(true);
     const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
     if (currSticker == "") {
       currTool = createLine(mouseLocation, currLineWidth);
@@ -153,32 +164,24 @@ canvas.addEventListener("mousedown", (e) => {
     drawList.push(currTool);
   }
 });
-
 canvas.addEventListener("mouseenter", (e) => {
   if (currTool) {
-    const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
-    toolPreview = createToolPreview(mouseLocation);
-    canvas.dispatchEvent(toolChangedEvent);
+    showToolPreview(e);
   }
 });
-
 canvas.addEventListener("mouseout", () => {
   if (currTool) {
-    cursorActive = false;
-    toolPreview = null;
-    canvas.dispatchEvent(toolChangedEvent);
+    setCursorActivation(false);
   }
 });
-
 canvas.addEventListener("mousemove", (e) => {
   if (currTool) {
-    const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
     if (cursorActive) {
+      const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
       currTool.drag(mouseLocation);
       canvas.dispatchEvent(drawingChangedEvent);
     } else {
-      toolPreview = createToolPreview(mouseLocation);
-      canvas.dispatchEvent(toolChangedEvent);
+      showToolPreview(e);
     }
   }
 });
@@ -186,9 +189,7 @@ canvas.addEventListener("mousemove", (e) => {
 canvas.addEventListener("mouseup", (e) => {
   if (currTool) {
     cursorActive = false;
-    const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
-    toolPreview = createToolPreview(mouseLocation);
-    canvas.dispatchEvent(toolChangedEvent);
+    showToolPreview(e);
     redoList = []; // Clear redo list whenever a new thing is drawn
   }
 });
@@ -211,6 +212,7 @@ function createButton(config: ButtonConfig) {
 
 // Create canvas tool buttons
 createButton({
+  // Clear
   name: "🗑️",
   div: canvasToolsDiv,
   clickFunction: () => {
@@ -220,6 +222,7 @@ createButton({
   },
 });
 createButton({
+  // Undo
   name: "↩️",
   div: canvasToolsDiv,
   clickFunction: () => {
@@ -231,6 +234,7 @@ createButton({
   },
 });
 createButton({
+  // Redo
   name: "↪️",
   div: canvasToolsDiv,
   clickFunction: () => {
@@ -242,6 +246,7 @@ createButton({
   },
 });
 createButton({
+  // Export
   name: "💾",
   div: canvasToolsDiv,
   clickFunction: () => {
