@@ -21,6 +21,7 @@ canvas.width = 256;
 app.append(canvas);
 const lineToolsDiv = createDiv("line-tools");
 const stickerToolsDiv = createDiv("sticker-tools");
+const stickerSliderDiv = createDiv("sticker-size-slider");
 
 const ctx = canvas.getContext("2d");
 let cursorActive = false;
@@ -36,28 +37,27 @@ let redoList: Array<Line | Sticker> = [];
 
 let currLineWidth = 0;
 let currSticker = "";
-let currStickerSize = "30px";
+let currStickerSize = "30";
 
 interface Point {
   x: number;
   y: number;
 }
+const ORIGIN: Point = { x: 0, y: 0 };
 
 interface Line {
-  points: Array<Point>;
   drag(newPoint: Point): void;
   display(ctx: CanvasRenderingContext2D): void;
   displayPreview(ctx: CanvasRenderingContext2D, location: Point): void;
 }
-function createLine(initPoint: Point, lineWidth: number): Line {
+function createLine(initPoint: Point, width: number): Line {
   const points: Array<Point> = [initPoint];
   return {
-    points: points,
     drag: (newPoint: Point) => {
       points.push(newPoint);
     },
     display: (ctx: CanvasRenderingContext2D) => {
-      ctx.lineWidth = lineWidth;
+      ctx.lineWidth = width;
       for (let i = 0; i < points.length - 1; i++) {
         ctx.beginPath();
         ctx.moveTo(points[i].x, points[i].y);
@@ -82,26 +82,31 @@ function createLine(initPoint: Point, lineWidth: number): Line {
   };
 }
 
+// Returns a sticker origin based on mouse location and sticker size
+function calculateStickerOrigin(location: Point, size: string): Point {
+  const offset: Point = { x: +size / -1.5, y: +size / 3 };
+  return { x: location.x + offset.x, y: location.y + offset.y };
+}
+
 interface Sticker {
-  location: Point;
-  type: string;
   drag(newPoint: Point): void;
   display(ctx: CanvasRenderingContext2D): void;
   displayPreview(ctx: CanvasRenderingContext2D, location: Point): void;
 }
-function createSticker(location: Point, type: string): Sticker {
+function createSticker(location: Point, type: string, size: string): Sticker {
   return {
-    location: location,
-    type: type,
     drag: (newPoint: Point) => {
       location = newPoint;
     },
     display: (ctx: CanvasRenderingContext2D) => {
-      ctx.fillText(type, location.x, location.y);
+      ctx.font = "bold " + size + "px cursive";
+      const origin = calculateStickerOrigin(location, size);
+      ctx.fillText(type, origin.x, origin.y);
     },
     displayPreview: (ctx: CanvasRenderingContext2D, location: Point) => {
-      ctx.font = "bold " + currStickerSize + " cursive";
-      ctx.fillText(type, location.x, location.y);
+      ctx.font = "bold " + currStickerSize + "px cursive";
+      const origin = calculateStickerOrigin(location, currStickerSize);
+      ctx.fillText(type, origin.x, origin.y);
     },
   };
 }
@@ -160,7 +165,7 @@ canvas.addEventListener("mousedown", (e) => {
     if (currSticker == "") {
       currTool = createLine(mouseLocation, currLineWidth);
     } else {
-      currTool = createSticker(mouseLocation, currSticker);
+      currTool = createSticker(mouseLocation, currSticker, currStickerSize);
     }
     drawList.push(currTool);
   }
@@ -296,7 +301,7 @@ function createStickerButton(sticker: string) {
     div: stickerToolsDiv,
     clickFunction: () => {
       currSticker = sticker;
-      currTool = createSticker({ x: 0, y: 0 }, currSticker);
+      currTool = createSticker({ x: 0, y: 0 }, currSticker, currStickerSize);
       selectTool(stickerButton);
     },
   });
@@ -304,6 +309,31 @@ function createStickerButton(sticker: string) {
 }
 stickers.forEach((sticker) => {
   createStickerButton(sticker);
+});
+
+const stickerSliderLabel = document.createElement("h3");
+stickerSliderLabel.innerHTML = "Sticker Size";
+stickerSliderLabel.style.display = "inline-block";
+stickerSliderLabel.style.marginRight = "10px";
+stickerSliderDiv.append(stickerSliderLabel);
+
+const stickerSlider = document.createElement("input");
+stickerSlider.type = "range";
+stickerSlider.min = "5";
+stickerSlider.max = "100";
+stickerSlider.value = "30";
+stickerSlider.style.display = "inline-block";
+stickerSliderDiv.append(stickerSlider);
+
+const stickerSliderOutput = document.createElement("h3");
+stickerSliderOutput.innerHTML = stickerSlider.value;
+stickerSliderOutput.style.display = "inline-block";
+stickerSliderOutput.style.marginLeft = "10px";
+stickerSliderDiv.append(stickerSliderOutput);
+
+stickerSlider.addEventListener("change", () => {
+  stickerSliderOutput.innerHTML = stickerSlider.value;
+  currStickerSize = stickerSlider.value;
 });
 
 const customStickerButton = createButton({
