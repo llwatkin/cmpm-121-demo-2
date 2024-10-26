@@ -285,7 +285,7 @@ lineTools.forEach((tool) => {
     clickFunction: () => {
       currLineWidth = tool.size;
       currSticker = "";
-      currTool = createLine({ x: 0, y: 0 }, currLineWidth);
+      currTool = createLine(ORIGIN, currLineWidth);
       selectTool(lineToolButton);
     },
   });
@@ -301,7 +301,7 @@ function createStickerButton(sticker: string) {
     div: stickerToolsDiv,
     clickFunction: () => {
       currSticker = sticker;
-      currTool = createSticker({ x: 0, y: 0 }, currSticker, currStickerSize);
+      currTool = createSticker(ORIGIN, currSticker, currStickerSize);
       selectTool(stickerButton);
     },
   });
