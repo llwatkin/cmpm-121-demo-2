@@ -13,7 +13,7 @@ function createDiv(name: string) {
   app.append(newDiv);
   return newDiv;
 }
-// Create tool divs and canvas
+
 const canvasToolsDiv = createDiv("canvas-tools");
 const canvas = document.createElement("canvas");
 canvas.height = 256;
@@ -82,7 +82,6 @@ function createLine(initPoint: Point, width: number): Line {
   };
 }
 
-// Returns a sticker origin based on mouse location and sticker size
 function calculateStickerOrigin(location: Point, size: string): Point {
   const offset: Point = { x: +size / -1.5, y: +size / 3 };
   return { x: location.x + offset.x, y: location.y + offset.y };
@@ -93,6 +92,7 @@ interface Sticker {
   display(ctx: CanvasRenderingContext2D): void;
   displayPreview(ctx: CanvasRenderingContext2D, location: Point): void;
 }
+
 function createSticker(location: Point, type: string, size: string): Sticker {
   return {
     drag: (newPoint: Point) => {
@@ -115,7 +115,6 @@ interface ToolPreview {
   display(ctx: CanvasRenderingContext2D): void;
 }
 function createToolPreview(location: Point): ToolPreview {
-  // Disable cursor if still enabled
   canvas.style.cursor = "none";
   return {
     display: (ctx: CanvasRenderingContext2D) => {
@@ -145,13 +144,12 @@ canvas.addEventListener("tool-changed", () => {
   redraw(ctx!);
 });
 
-// Sets cursorActive to either true or false and removes the tool preview
 function setCursorActivation(setting: boolean) {
   cursorActive = setting;
   toolPreview = null;
   canvas.dispatchEvent(toolChangedEvent);
 }
-// Creates a tool preview object at the mouse location and fires event
+
 function showToolPreview(e: MouseEvent) {
   const mouseLocation: Point = { x: e.offsetX, y: e.offsetY };
   toolPreview = createToolPreview(mouseLocation);
@@ -196,17 +194,16 @@ canvas.addEventListener("mouseup", (e) => {
   if (currTool) {
     cursorActive = false;
     showToolPreview(e);
-    redoList = []; // Clear redo list whenever a new thing is drawn
+    redoList = []; 
   }
 });
 
-// Config object for general button creation function
 interface ButtonConfig {
   name: string;
   div: HTMLDivElement;
   clickFunction(): void;
 }
-// General function to create a button with a name and click function in a certain div
+
 function createButton(config: ButtonConfig) {
   const newButton = document.createElement("button");
   newButton.innerHTML = config.name;
@@ -216,9 +213,8 @@ function createButton(config: ButtonConfig) {
   return newButton;
 }
 
-// Create canvas tool buttons
 createButton({
-  name: "🗑️", // Clear
+  name: "🗑️", 
   div: canvasToolsDiv,
   clickFunction: () => {
     drawList = [];
@@ -226,8 +222,9 @@ createButton({
     clearCanvas(ctx!);
   },
 });
+
 createButton({
-  name: "↩️", // Undo
+  name: "↩️", 
   div: canvasToolsDiv,
   clickFunction: () => {
     const undoLine = drawList.pop();
@@ -237,8 +234,9 @@ createButton({
     canvas.dispatchEvent(drawingChangedEvent);
   },
 });
+
 createButton({
-  name: "↪️", // Redo
+  name: "↪️", 
   div: canvasToolsDiv,
   clickFunction: () => {
     const redoLine = redoList.pop();
@@ -248,8 +246,9 @@ createButton({
     canvas.dispatchEvent(drawingChangedEvent);
   },
 });
+
 createButton({
-  name: "💾", // Export
+  name: "💾", 
   div: canvasToolsDiv,
   clickFunction: () => {
     const exportCanvas = document.createElement("canvas");
@@ -265,14 +264,12 @@ createButton({
   },
 });
 
-// Removes selectedTool class from all buttons & adds it to the button passed to the function
 function selectTool(toolButton: HTMLButtonElement) {
   lineToolButtons.forEach((button) => button.classList.remove("selectedTool"));
   stickerButtons.forEach((button) => button.classList.remove("selectedTool"));
   toolButton.classList.add("selectedTool");
 }
 
-// Create line tool buttons
 const lineTools = [
   { name: "○", size: THIN_LINE_WIDTH },
   { name: "◯", size: THICK_LINE_WIDTH },
@@ -292,7 +289,6 @@ lineTools.forEach((tool) => {
   lineToolButtons.push(lineToolButton);
 });
 
-// Create sticker buttons
 const stickers: Array<string> = ["🐟", "🌿", "🪨"];
 const stickerButtons: Array<HTMLButtonElement> = [];
 function createStickerButton(sticker: string) {
@@ -343,7 +339,6 @@ const customStickerButton = createButton({
     const customText = prompt("Enter custom sticker text:", "");
     if (customText) {
       createStickerButton(customText);
-      // Remove and re-add custom sticker button so it always appears at the end
       customStickerButton.remove();
       stickerToolsDiv.append(customStickerButton);
     }
