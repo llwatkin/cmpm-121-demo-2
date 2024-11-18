@@ -49,15 +49,19 @@ interface Line {
   drag(newPoint: Point): void;
   display(ctx: CanvasRenderingContext2D): void;
   displayPreview(ctx: CanvasRenderingContext2D, location: Point): void;
+  color: string
 }
 function createLine(initPoint: Point, width: number): Line {
   const points: Array<Point> = [initPoint];
+  const lineColor = currColor;
   return {
+    color: lineColor,
     drag: (newPoint: Point) => {
       points.push(newPoint);
     },
     display: (ctx: CanvasRenderingContext2D) => {
       ctx.lineWidth = width;
+      ctx.strokeStyle = lineColor; // Use the stored color for this line
       for (let i = 0; i < points.length - 1; i++) {
         ctx.beginPath();
         ctx.moveTo(points[i].x, points[i].y);
@@ -67,6 +71,8 @@ function createLine(initPoint: Point, width: number): Line {
     },
     displayPreview: (ctx: CanvasRenderingContext2D, location: Point) => {
       ctx.lineWidth = currLineWidth;
+      ctx.strokeStyle = lineColor; // Use stored color for preview
+      ctx.fillStyle = lineColor; // Use stored color for preview
       ctx.beginPath();
       ctx.arc(
         location.x,
@@ -343,4 +349,39 @@ const customStickerButton = createButton({
       stickerToolsDiv.append(customStickerButton);
     }
   },
+});
+
+
+const colorSliderDiv = createDiv("color-slider");
+
+const colorSliderLabel = document.createElement("h3");
+colorSliderLabel.innerHTML = "Line Color";
+colorSliderLabel.style.display = "inline-block";
+colorSliderLabel.style.marginRight = "10px";
+colorSliderDiv.append(colorSliderLabel);
+
+const colorSlider = document.createElement("input");
+colorSlider.type = "range";
+colorSlider.min = "0";
+colorSlider.max = "360"; // Represents degrees in the HSL color space
+colorSlider.value = "0";
+colorSlider.style.display = "inline-block";
+colorSliderDiv.append(colorSlider);
+
+const colorPreview = document.createElement("div");
+colorPreview.style.display = "inline-block";
+colorPreview.style.width = "30px";
+colorPreview.style.height = "30px";
+colorPreview.style.marginLeft = "10px";
+colorPreview.style.border = "1px solid #000";
+colorSliderDiv.append(colorPreview);
+
+let currColor = `hsl(${colorSlider.value}, 100%, 50%)`;
+colorPreview.style.backgroundColor = currColor;
+
+colorSlider.addEventListener("input", () => {
+  currColor = `hsl(${colorSlider.value}, 100%, 50%)`;
+  colorPreview.style.backgroundColor = currColor;
+  ctx!.strokeStyle = currColor;
+  ctx!.fillStyle = currColor;
 });
